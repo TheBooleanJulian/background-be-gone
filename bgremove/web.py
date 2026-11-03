@@ -53,7 +53,7 @@ def create_app(enable_bot: bool = False) -> FastAPI:
                 await tg.shutdown()
             warm.cancel()
 
-    app = FastAPI(title="Background Remover", lifespan=lifespan)
+    app = FastAPI(title="Background Begone", lifespan=lifespan)
 
     @app.get("/healthz")
     async def healthz():
