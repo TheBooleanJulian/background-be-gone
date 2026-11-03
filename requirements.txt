@@ -1,0 +1,6 @@
+python-telegram-bot>=21.4
+rembg[cpu]>=2.0.62
+Pillow>=10.4.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9

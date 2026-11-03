@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Background Remover</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #050508;
+    --surface: #0A0E14;
+    --line: #1b2330;
+    --text: #e6edf3;
+    --muted: #7d8896;
+    --teal: #00D4C8;
+    --gold: #F5C842;
+    --danger: #ff6b6b;
+    --sans: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--void); color: var(--text); font-family: var(--sans); }
+  body { min-height: 100vh; padding: max(20px, env(safe-area-inset-top)) 16px 48px; }
+  main { max-width: 960px; margin: 0 auto; }
+
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 8px 0 22px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--teal); }
+  .tag { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
+
+  #drop {
+    border: 1.5px dashed #2a3545; border-radius: 14px; background: var(--surface);
+    padding: 36px 20px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop:hover, #drop.over, #drop:focus-visible { border-color: var(--teal); background: #0b141a; outline: none; }
+  #drop strong { display: block; font-size: 1.05rem; margin-bottom: 6px; }
+  #drop small { color: var(--muted); font-family: var(--mono); font-size: .75rem; }
+  #file { display: none; }
+
+  .toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 6px; }
+  .toolbar .label { font-family: var(--mono); font-size: .75rem; color: var(--muted); margin-right: 2px; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); cursor: pointer; padding: 0; }
+  .swatch[aria-pressed="true"] { border-color: var(--teal); box-shadow: 0 0 0 2px #00d4c844; }
+  .sw-none { background: conic-gradient(#3a4452 25%, #1d242e 0 50%, #3a4452 0 75%, #1d242e 0) 0 0/10px 10px; }
+  .sw-white { background: #fff; } .sw-dark { background: #0A0E14; }
+  .sw-teal { background: var(--teal); } .sw-gold { background: var(--gold); }
+  .spacer { flex: 1; }
+
+  button.btn {
+    font: 500 .85rem var(--sans); color: var(--void); background: var(--teal);
+    border: 0; border-radius: 8px; padding: 9px 14px; cursor: pointer; text-decoration: none; display: inline-block;
+  }
+  button.btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  button.btn:hover { filter: brightness(1.1); }
+
+  #results { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .stage {
+    position: relative; aspect-ratio: 1 / 1; display: grid; place-items: center;
+    background: conic-gradient(#2a323d 25%, #1b212a 0 50%, #2a323d 0 75%, #1b212a 0) 0 0/16px 16px;
+  }
+  .stage img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .stage.solid { background-image: none; }
+  .stage .status { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--mono); font-size: .8rem; color: var(--muted); background: #0a0e14cc; text-align: center; padding: 16px; }
+  .stage .status.err { color: var(--danger); }
+  .spin { width: 22px; height: 22px; border: 2px solid #26303d; border-top-color: var(--teal); border-radius: 50%; animation: s .8s linear infinite; margin: 0 auto 10px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .meta { display: flex; align-items: center; gap: 8px; padding: 10px 12px; }
+  .meta .name { flex: 1; min-width: 0; font-family: var(--mono); font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  footer { margin-top: 36px; color: var(--muted); font-family: var(--mono); font-size: .72rem; }
+  footer a { color: var(--teal); text-decoration: none; }
+  @media (prefers-reduced-motion: reduce) { .spin { animation-duration: 2s; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Background <span>Remover</span></h1>
+    <span class="tag">transparent PNG · subjects kept · no signup</span>
+  </header>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Choose images">
+    <strong>Drop images here, paste, or click to choose</strong>
+    <small>JPG · PNG · WebP · multiple files OK</small>
+  </div>
+  <input id="file" type="file" accept="image/*" multiple>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <span class="label">preview on</span>
+    <button class="swatch sw-none" data-bg="" aria-pressed="true" title="Transparent"></button>
+    <button class="swatch sw-white" data-bg="#ffffff" aria-pressed="false" title="White"></button>
+    <button class="swatch sw-dark" data-bg="#0A0E14" aria-pressed="false" title="Dark"></button>
+    <button class="swatch sw-teal" data-bg="#00D4C8" aria-pressed="false" title="Teal"></button>
+    <button class="swatch sw-gold" data-bg="#F5C842" aria-pressed="false" title="Gold"></button>
+    <span class="spacer"></span>
+    <button class="btn ghost" id="clear">Clear all</button>
+  </div>
+
+  <div id="results" aria-live="polite"></div>
+
+  <footer>Preview colours are display only; downloads are always transparent PNG.</footer>
+</main>
+
+<script>
+(() => {
+  const MAX_BYTES = 15 * 1024 * 1024;
+  const drop = document.getElementById('drop');
+  const input = document.getElementById('file');
+  const results = document.getElementById('results');
+  const toolbar = document.getElementById('toolbar');
+  let bg = '';
+  const queue = [];
+  let running = false;
+
+  drop.addEventListener('click', () => input.click());
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+  input.addEventListener('change', () => { add(input.files); input.value = ''; });
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => add(e.dataTransfer.files));
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => { e.preventDefault(); if (e.target !== drop && !drop.contains(e.target)) add(e.dataTransfer.files); });
+  window.addEventListener('paste', e => {
+    const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+    if (files.length) add(files);
+  });
+
+  toolbar.querySelectorAll('.swatch').forEach(b => b.addEventListener('click', () => {
+    bg = b.dataset.bg;
+    toolbar.querySelectorAll('.swatch').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    results.querySelectorAll('.stage').forEach(applyBg);
+  }));
+  document.getElementById('clear').addEventListener('click', () => {
+    results.querySelectorAll('img').forEach(i => { if (i.src.startsWith('blob:')) URL.revokeObjectURL(i.src); });
+    results.innerHTML = ''; toolbar.hidden = true;
+  });
+
+  function applyBg(stage) {
+    if (bg) { stage.classList.add('solid'); stage.style.backgroundColor = bg; }
+    else { stage.classList.remove('solid'); stage.style.backgroundColor = ''; }
+  }
+
+  function add(fileList) {
+    const files = [...fileList].filter(f => f.type.startsWith('image/') || /\.(jpe?g|png|webp|bmp|gif|tiff?)$/i.test(f.name));
+    for (const f of files) {
+      const card = makeCard(f);
+      results.prepend(card.el);
+      toolbar.hidden = false;
+      if (f.size > MAX_BYTES) { card.fail('Over 15MB limit'); continue; }
+      queue.push({ f, card });
+    }
+    pump();
+  }
+
+  function makeCard(file) {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `<div class="stage"><img alt=""><div class="status"><div><div class="spin"></div>Queued</div></div></div>
+      <div class="meta"><span class="name"></span></div>`;
+    el.querySelector('.name').textContent = file.name || 'pasted image';
+    const stage = el.querySelector('.stage');
+    const img = stage.querySelector('img');
+    const status = stage.querySelector('.status');
+    const meta = el.querySelector('.meta');
+    applyBg(stage);
+    const srcUrl = URL.createObjectURL(file);
+    img.src = srcUrl;
+    return {
+      el,
+      working() { status.innerHTML = '<div><div class="spin"></div>Removing background…</div>'; },
+      fail(msg) { status.className = 'status err'; status.textContent = msg; URL.revokeObjectURL(srcUrl); },
+      done(blob) {
+        const url = URL.createObjectURL(blob);
+        URL.revokeObjectURL(srcUrl);
+        img.src = url; status.remove();
+        const base = (file.name || 'image').replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '_') || 'image';
+        const a = document.createElement('a');
+        a.className = 'btn'; a.textContent = 'Download PNG'; a.href = url; a.download = base + '_nobg.png';
+        meta.append(a);
+      }
+    };
+  }
+
+  async function pump() {
+    if (running) return;
+    running = true;
+    while (queue.length) {
+      const { f, card } = queue.shift();
+      card.working();
+      try {
+        const fd = new FormData();
+        fd.append('file', f, f.name || 'pasted.png');
+        const r = await fetch('/api/remove', { method: 'POST', body: fd });
+        if (!r.ok) {
+          let msg = 'Failed (' + r.status + ')';
+          try { msg = (await r.json()).detail || msg; } catch (_) {}
+          card.fail(msg);
+        } else {
+          card.done(await r.blob());
+        }
+      } catch (e) {
+        card.fail('Network error');
+      }
+    }
+    running = false;
+  }
+})();
+</script>
+</body>
+</html>
