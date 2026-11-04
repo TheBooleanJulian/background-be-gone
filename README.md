@@ -1,4 +1,4 @@
-# Background Remover: web app + Telegram bot
+# Background Begone: web app + Telegram bot
 
 One shared cutout core (`bgremove/core.py`, powered by `rembg`/ONNX) with two front ends:
 
@@ -45,8 +45,8 @@ The suite stubs the ONNX model, so it needs no model download and runs fast in C
 Workers/Pages**. Use a small VPS, Fly.io, Railway, or any Docker host:
 
 ```bash
-docker build -t bg-remover .
-docker run -d --restart unless-stopped -p 8080:8080 --env-file .env bg-remover
+docker build -t bg-begone .
+docker run -d --restart unless-stopped -p 8080:8080 --env-file .env bg-begone
 ```
 
 The image bakes in the default model so restarts are instant. Put Cloudflare (proxy + DNS, and
